@@ -1,0 +1,11 @@
+[package]
+name = "fringe-scraper-rust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3.30"
+reqwest = { version = "0.12.3", features = ["blocking"] }
+scraper = "0.19.0"
