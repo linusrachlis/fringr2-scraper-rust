@@ -1,65 +1,58 @@
-use reqwest::blocking::{Client, Response};
-use std::fs::read_to_string;
-
-// Simpler case for figuring out ownership stuff
-// fn main() {
-//     let client = Client::new();
-//     let play_url = "https://fringetoronto.com/next-stage/show/black-canada";
-//     print!("Fetching {}", play_url);
-//     match client.get(play_url).send() {
-//         Ok(response) => {
-//             let status = response.status();
-//             println!("-> {}", status);
-//             if status.is_success() {
-//                 if let Ok(text) = response.text() {
-//                     println!("Here is the HTML content for {}", response.url());
-//                     println!("----------------------------------------");
-//                     println!("{text}");
-//                 } else {
-//                     println!("Failed to decode response for {}", response.url());
-//                 }
-//             }
-//         }
-//         Err(error) => println!("Error for {} -> {}", play_url, error),
-//     }
-// }
+use reqwest::blocking::Client;
+use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::path;
 
 fn main() {
-    let mut responses = Vec::<Response>::new();
     let client = Client::new();
-    let mut num_play_urls = 0;
-    for play_url in read_to_string("./config/play_urls.txt").unwrap().lines() {
-        num_play_urls += 1;
-        print!("Fetching {}", play_url);
-        let result = client.get(play_url).send(); // TODO parallelize requests
-        match result {
-            Ok(response) => {
-                let status = response.status();
-                println!(" -> {}", status);
-                if status.is_success() {
-                    responses.push(response);
+    for play_url in fs::read_to_string("./config/play_urls.txt")
+        .unwrap()
+        .lines()
+    {
+        match try_to_fetch_cached_response(play_url) {
+            Some(response_text) => println!("Got cached hit for {play_url}"),
+            None => {
+                print!("Fetching {}", play_url);
+                let result = client.get(play_url).send(); // TODO parallelize requests
+                match result {
+                    Ok(response) => {
+                        let status = response.status();
+                        println!(" -> {}", status);
+                        if status.is_success() {
+                            if let Ok(text) = response.text() {
+                                cache_response(play_url, text);
+                            } else {
+                                println!("Failed to decode response for {}", play_url);
+                            }
+                        }
+                    }
+                    Err(error) => println!("Error for {} -> {}", play_url, error),
                 }
             }
-            Err(error) => println!("Error for {} -> {}", play_url, error),
         }
-        break; // FIXME this is limiting to the first play for dev iteration
     }
+}
 
-    println!(
-        "Successfully fetched {}/{} URLs",
-        responses.len(),
-        num_play_urls
-    );
+fn get_cache_file_path(play_url: &str) -> String {
+    let mut sanitized_url = play_url.to_string();
+    sanitized_url.retain(|c| c.is_ascii_alphanumeric());
+    let mut hasher = DefaultHasher::new();
+    play_url.hash(&mut hasher);
+    format!("cache/{sanitized_url}_{:x}", hasher.finish())
+}
 
-    for response in responses {
-        let url = String::from(response.url().as_str());
-        if let Ok(text) = response.text() {
-            println!("Here is the HTML content for {}", url);
-            println!("----------------------------------------");
-            println!("{text}");
-        } else {
-            println!("Failed to decode response for {}", url);
-        }
-        return; // FIXME this is stopping the loop
+fn try_to_fetch_cached_response(play_url: &str) -> Option<String> {
+    let cache_file_path = get_cache_file_path(play_url);
+    let file_exists = path::Path::new(&cache_file_path).exists();
+    if file_exists {
+        Some(fs::read_to_string(cache_file_path).unwrap())
+    } else {
+        None
     }
+}
+
+fn cache_response(play_url: &str, response_text: String) {
+    let cache_file_path = get_cache_file_path(play_url);
+    println!("Caching at {cache_file_path}");
+    fs::write(cache_file_path, response_text).unwrap();
 }
