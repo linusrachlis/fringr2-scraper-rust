@@ -9,26 +9,38 @@ fn main() {
         .unwrap()
         .lines()
     {
-        match try_to_fetch_cached_response(play_url) {
-            Some(response_text) => println!("Got cached hit for {play_url}"),
-            None => {
-                print!("Fetching {}", play_url);
-                let result = client.get(play_url).send(); // TODO parallelize requests
-                match result {
-                    Ok(response) => {
-                        let status = response.status();
-                        println!(" -> {}", status);
-                        if status.is_success() {
-                            if let Ok(text) = response.text() {
-                                cache_response(play_url, text);
-                            } else {
-                                println!("Failed to decode response for {}", play_url);
-                            }
+        if let Some(response_text) = get_response_text(&client, play_url) {
+            println!("Goit response text {response_text}");
+        } else {
+            println!("Got no satisfaction");
+        }
+    }
+}
+
+fn get_response_text(client: &Client, play_url: &str) -> Option<String> {
+    match try_to_fetch_cached_response(play_url) {
+        Some(response_text) => Some(response_text),
+        None => {
+            // Fetch afresh
+            let mut maybe_response_text: Option<String> = None;
+            print!("Fetching {}", play_url);
+            let result = client.get(play_url).send(); // TODO parallelize requests
+            match result {
+                Ok(response) => {
+                    let status = response.status();
+                    println!(" -> {}", status);
+                    if status.is_success() {
+                        if let Ok(response_text) = response.text() {
+                            cache_response(play_url, &response_text);
+                            maybe_response_text = Some(response_text);
+                        } else {
+                            println!("Failed to decode response for {}", play_url);
                         }
                     }
-                    Err(error) => println!("Error for {} -> {}", play_url, error),
                 }
+                Err(error) => println!("Error for {} -> {}", play_url, error),
             }
+            maybe_response_text
         }
     }
 }
@@ -51,7 +63,7 @@ fn try_to_fetch_cached_response(play_url: &str) -> Option<String> {
     }
 }
 
-fn cache_response(play_url: &str, response_text: String) {
+fn cache_response(play_url: &str, response_text: &String) {
     let cache_file_path = get_cache_file_path(play_url);
     println!("Caching at {cache_file_path}");
     fs::write(cache_file_path, response_text).unwrap();
