@@ -30,15 +30,15 @@ fn main() {
 
             // Get all the starting digits from the node's text; this is the number of minutes for
             // the runtime.
-            let mut runtime_first_non_digit_position = 0;
+            let mut runtime_last_digit_position = 0;
             for c in runtime_text.chars() {
-                runtime_first_non_digit_position += 1;
                 if !c.is_ascii_digit() {
                     break;
                 }
+                runtime_last_digit_position += 1;
             }
-            let runtime_minutes = &runtime_text[0..runtime_first_non_digit_position];
-            println!("Runtime: {runtime_minutes}");
+            let runtime_minutes = &runtime_text[0..runtime_last_digit_position];
+            println!("Runtime: [{runtime_minutes}]");
         } else {
             println!("No runtime");
         }
