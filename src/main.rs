@@ -1,4 +1,5 @@
 use reqwest::blocking::Client;
+use scraper::{Html, Selector};
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path;
@@ -9,11 +10,17 @@ fn main() {
         .unwrap()
         .lines()
     {
-        if let Some(response_text) = get_response_text(&client, play_url) {
-            println!("Goit response text {response_text}");
-        } else {
-            println!("Got no satisfaction");
-        }
+        let play_page_html = get_response_text(&client, play_url).unwrap();
+        let document = Html::parse_document(&play_page_html);
+        let title_selector = Selector::parse(".page-title").unwrap();
+        let title_text = document
+            .select(&title_selector)
+            .next()
+            .unwrap()
+            .text()
+            .collect::<String>();
+        let title_text = title_text.trim();
+        println!("Title text!! Maybe? [{title_text}]");
     }
 }
 
