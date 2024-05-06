@@ -20,7 +20,28 @@ fn main() {
             .text()
             .collect::<String>();
         let title_text = title_text.trim();
-        println!("Title text!! Maybe? [{title_text}]");
+        println!("Title: [{title_text}]");
+
+        let runtime_text_selector = Selector::parse(".show-info .column.right dd").unwrap();
+        let maybe_runtime_text_container = document.select(&runtime_text_selector).next();
+        if let Some(runtime_text_container) = maybe_runtime_text_container {
+            let runtime_text = runtime_text_container.text().collect::<String>();
+            let runtime_text = runtime_text.trim_start();
+
+            // Get all the starting digits from the node's text; this is the number of minutes for
+            // the runtime.
+            let mut runtime_first_non_digit_position = 0;
+            for c in runtime_text.chars() {
+                runtime_first_non_digit_position += 1;
+                if !c.is_ascii_digit() {
+                    break;
+                }
+            }
+            let runtime_minutes = &runtime_text[0..runtime_first_non_digit_position];
+            println!("Runtime: {runtime_minutes}");
+        } else {
+            println!("No runtime");
+        }
     }
 }
 
